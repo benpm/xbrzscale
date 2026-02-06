@@ -41,7 +41,10 @@ jobs:
       - name: Upscale example images
         shell: pwsh
         run: |
-          $images = Get-ChildItem -Path examples -Include *.png,*.bmp,*.jpg -Recurse -File | Where-Object { $_.DirectoryName -notmatch 'upscaled' }
+          $images = @()
+          $images += Get-ChildItem -Path examples -Filter *.png | Where-Object { $_.DirectoryName -notmatch 'upscaled' }
+          $images += Get-ChildItem -Path examples -Filter *.bmp | Where-Object { $_.DirectoryName -notmatch 'upscaled' }
+          $images += Get-ChildItem -Path examples -Filter *.jpg | Where-Object { $_.DirectoryName -notmatch 'upscaled' }
 
           foreach ($img in $images) {
             $basename = $img.BaseName
@@ -70,7 +73,10 @@ jobs:
 
           "@
 
-          $images = Get-ChildItem -Path examples -Include *.png,*.bmp,*.jpg -File | Where-Object { $_.DirectoryName -notmatch 'upscaled' } | Sort-Object Name
+          $images = Get-ChildItem -Path examples -Filter *.png | Where-Object { $_.DirectoryName -notmatch 'upscaled' } | Sort-Object Name
+          $images += Get-ChildItem -Path examples -Filter *.bmp | Where-Object { $_.DirectoryName -notmatch 'upscaled' } | Sort-Object Name
+          $images += Get-ChildItem -Path examples -Filter *.jpg | Where-Object { $_.DirectoryName -notmatch 'upscaled' } | Sort-Object Name
+          $images = $images | Sort-Object Name
 
           foreach ($img in $images) {
             $basename = $img.BaseName
