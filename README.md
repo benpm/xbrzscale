@@ -1,6 +1,8 @@
 xBRZ upscaling commandline tool
 ===============================
 
+![Build Status](https://github.com/USERNAME/xbrzscale/workflows/Build/badge.svg)
+
 Copyright (c) 2020 Przemysław Grzywacz <nexather@gmail.com>
 
 This file is part of xbrzscale.
@@ -55,6 +57,11 @@ Some additional libraries are needed. I'm sure you'll figure it out.
 
 If you need SDL1.2 support, check sdl1.2 git branch.
 
+
+Downloading Pre-built Binaries
+-------------------------------
+
+Pre-built executables for Windows, Linux, and macOS are available on the [Releases page](https://github.com/USERNAME/xbrzscale/releases). Download the archive for your platform, extract it, and run the `xbrzscale` executable.
 
 Compiling
 ---------

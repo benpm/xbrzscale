@@ -1,0 +1,174 @@
+name: Build
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  release:
+    types: [published]
+
+jobs:
+  build-windows:
+    name: Build on Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Configure CMake
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: |
+          cd build
+          cmake --build . --config Release
+
+      - name: Test executable
+        run: |
+          cd build/Release
+          ./xbrzscale.exe
+        continue-on-error: true
+
+      - name: Package artifacts
+        run: |
+          mkdir xbrzscale-windows
+          copy build/Release/xbrzscale.exe xbrzscale-windows/
+          copy build/Release/SDL2.dll xbrzscale-windows/
+          copy build/Release/SDL2_image.dll xbrzscale-windows/
+          copy build/Release/xbrz_shared.dll xbrzscale-windows/
+          copy README.md xbrzscale-windows/
+          copy License.txt xbrzscale-windows/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: xbrzscale-windows
+          path: xbrzscale-windows/
+
+      - name: Create release archive
+        if: github.event_name == 'release'
+        run: |
+          Compress-Archive -Path xbrzscale-windows/* -DestinationPath xbrzscale-windows.zip
+
+      - name: Upload to release
+        if: github.event_name == 'release'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} xbrzscale-windows.zip
+
+  build-linux:
+    name: Build on Linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build
+
+      - name: Configure CMake
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -G Ninja
+
+      - name: Build
+        run: |
+          cd build
+          cmake --build .
+
+      - name: Test executable
+        run: |
+          cd build
+          ./xbrzscale
+        continue-on-error: true
+
+      - name: Package artifacts
+        run: |
+          mkdir xbrzscale-linux
+          cp build/xbrzscale xbrzscale-linux/
+          cp build/libxbrz_shared.so xbrzscale-linux/
+          cp README.md xbrzscale-linux/
+          cp License.txt xbrzscale-linux/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: xbrzscale-linux
+          path: xbrzscale-linux/
+
+      - name: Create release archive
+        if: github.event_name == 'release'
+        run: |
+          tar -czf xbrzscale-linux.tar.gz xbrzscale-linux/
+
+      - name: Upload to release
+        if: github.event_name == 'release'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} xbrzscale-linux.tar.gz
+
+  build-macos:
+    name: Build on macOS
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install dependencies
+        run: |
+          brew install cmake ninja
+
+      - name: Configure CMake
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -G Ninja
+
+      - name: Build
+        run: |
+          cd build
+          cmake --build .
+
+      - name: Test executable
+        run: |
+          cd build
+          ./xbrzscale
+        continue-on-error: true
+
+      - name: Package artifacts
+        run: |
+          mkdir xbrzscale-macos
+          cp build/xbrzscale xbrzscale-macos/
+          cp build/libxbrz_shared.dylib xbrzscale-macos/
+          cp README.md xbrzscale-macos/
+          cp License.txt xbrzscale-macos/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: xbrzscale-macos
+          path: xbrzscale-macos/
+
+      - name: Create release archive
+        if: github.event_name == 'release'
+        run: |
+          tar -czf xbrzscale-macos.tar.gz xbrzscale-macos/
+
+      - name: Upload to release
+        if: github.event_name == 'release'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} xbrzscale-macos.tar.gz
