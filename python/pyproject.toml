@@ -1,0 +1,23 @@
+[project]
+name = "xbrzscale"
+version = "1.0.0"
+description = "Python wrapper for xBRZ pixel art scaling algorithm"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "GPL-3.0-or-later"}
+dependencies = [
+    "numpy>=1.20",
+    "Pillow>=9.0",
+]
+
+[project.scripts]
+xbrzscale-py = "xbrzscale.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=7.0",
+]

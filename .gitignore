@@ -1,7 +1,15 @@
 *.o
 *.a
-xbrzscale
+/xbrzscale
 .idea/
 xbrzscale.exe
 *.dll
 build/
+
+# Python
+python/.venv/
+python/__pycache__/
+python/*.egg-info/
+python/test_*.png
+*.pyc
+__pycache__/

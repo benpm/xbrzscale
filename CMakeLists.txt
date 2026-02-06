@@ -91,5 +91,18 @@ if(WIN32)
     )
 endif()
 
+# Shared library for Python bindings (xBRZ C API only, no SDL dependencies)
+add_library(xbrz_shared SHARED
+    xbrz_c_api.cpp
+)
+target_link_libraries(xbrz_shared PRIVATE xbrz)
+target_include_directories(xbrz_shared PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+set_target_properties(xbrz_shared PROPERTIES
+    OUTPUT_NAME "xbrz_shared"
+    VERSION 1.0
+    SOVERSION 1
+)
+
 # Installation
 install(TARGETS xbrzscale DESTINATION bin)
+install(TARGETS xbrz_shared DESTINATION lib)
