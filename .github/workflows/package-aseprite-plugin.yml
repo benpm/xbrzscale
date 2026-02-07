@@ -1,0 +1,41 @@
+name: Package Aseprite Plugin
+
+on:
+  push:
+    paths:
+      - 'aseprite-plugin/**'
+      - '.github/workflows/package-aseprite-plugin.yml'
+  pull_request:
+    paths:
+      - 'aseprite-plugin/**'
+      - '.github/workflows/package-aseprite-plugin.yml'
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  package:
+    name: Package Aseprite plugin
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Create plugin archive
+        run: |
+          cd aseprite-plugin
+          zip -r ../xbrz-filter.aseprite-extension package.json xbrz-filter.lua
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xbrz-filter-aseprite-extension
+          path: xbrz-filter.aseprite-extension
+
+      - name: Upload to release
+        if: github.event_name == 'release'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} xbrz-filter.aseprite-extension
