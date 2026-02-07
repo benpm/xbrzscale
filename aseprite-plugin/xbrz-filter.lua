@@ -33,30 +33,36 @@ local function applyXbrzFilter(scaleFactor)
     -- Find xbrzscale executable
     -- Look in common locations
     local xbrzPaths = {
-      "./xbrzscale",
-      "./xbrzscale.exe",
-      "./build/xbrzscale",
-      "./build/xbrzscale.exe",
-      "./build/Release/xbrzscale.exe",
-      "../xbrzscale",
-      "../xbrzscale.exe",
-      "../build/xbrzscale",
-      "../build/xbrzscale.exe",
+      "build/Release/xbrzscale.exe",
+      "build/Release/xbrzscale",
+      "build/xbrzscale.exe",
+      "build/xbrzscale",
       "../build/Release/xbrzscale.exe",
-      "xbrzscale",
-      "xbrzscale.exe"
+      "../build/Release/xbrzscale",
+      "../build/xbrzscale.exe",
+      "../build/xbrzscale",
+      "xbrzscale.exe",
+      "xbrzscale"
     }
 
     local xbrzCmd = nil
+    -- First try to find the file
     for _, path in ipairs(xbrzPaths) do
-      local testCmd = string.format('"%s" 2>&1', path)
-      local handle = io.popen(testCmd)
-      if handle then
-        local result = handle:read("*a")
-        handle:close()
-        if result and (string.find(result, "usage") or string.find(result, "scale_factor")) then
-          xbrzCmd = path
-          break
+      local f = io.open(path, "r")
+      if f then
+        f:close()
+        -- Verify it's the right executable by running it
+        -- Convert forward slashes to backslashes for Windows compatibility
+        local execPath = string.gsub(path, "/", "\\")
+        local testCmd = '"' .. execPath .. '" 2>&1'
+        local handle = io.popen(testCmd)
+        if handle then
+          local result = handle:read("*a")
+          handle:close()
+          if result and (string.find(result, "usage") or string.find(result, "scale_factor")) then
+            xbrzCmd = execPath
+            break
+          end
         end
       end
     end
