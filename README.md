@@ -32,6 +32,7 @@ This tool allows you to scale your graphics with the xBRZ algorithm, see https:/
 - Preserves sharp edges and avoids blurriness
 - Cross-platform (Windows, Linux, macOS)
 - C++ CLI tool and Python wrapper
+- **Aseprite plugin** for direct integration with the pixel art editor
 - Automated example gallery generation
 
 **See examples:** [EXAMPLES.md](EXAMPLES.md)
@@ -146,6 +147,20 @@ Image.fromarray(scaled, "RGBA").save("output.png")
 ```
 
 **Note:** Scaling works best with pixel art and has been primarily tested with 32-bit RGBA PNGs.
+
+### Aseprite Plugin
+
+For Aseprite users, we provide a plugin that integrates xBRZ scaling directly into the editor:
+
+1. **Build xbrzscale** (see Building from Source above)
+2. **Install the plugin**: Copy `aseprite-plugin/` folder to your Aseprite extensions directory
+   - Windows: `%APPDATA%\Aseprite\extensions\`
+   - macOS: `~/Library/Application Support/Aseprite/extensions/`
+   - Linux: `~/.config/aseprite/extensions/`
+3. **Restart Aseprite**
+4. **Use from menu**: Sprite > Sprite Size > xBRZ 2x/3x/4x/5x/6x
+
+See [aseprite-plugin/README.md](aseprite-plugin/README.md) for detailed installation and usage instructions.
 
 GitHub Actions
 --------------
