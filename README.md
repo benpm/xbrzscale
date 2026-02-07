@@ -1,7 +1,7 @@
 xBRZ upscaling commandline tool
 ===============================
 
-![Build Status](https://github.com/USERNAME/xbrzscale/workflows/Build/badge.svg)
+![Build Status](https://github.com/benpm/xbrzscale/workflows/Build/badge.svg)
 
 Copyright (c) 2020 Przemysław Grzywacz <nexather@gmail.com>
 
@@ -25,7 +25,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 Overview
 --------
 
-This tool allows you to scale your graphics with xBRZ algorithm, see https://en.wikipedia.org/wiki/Pixel-art_scaling_algorithms#xBR_family
+This tool allows you to scale your graphics with the xBRZ algorithm, see https://en.wikipedia.org/wiki/Pixel-art_scaling_algorithms#xBR_family
+
+**Features:**
+- Scale pixel art images 2x to 6x
+- Preserves sharp edges and avoids blurriness
+- Cross-platform (Windows, Linux, macOS)
+- C++ CLI tool and Python wrapper
+- Automated example gallery generation
+
+**See examples:** [EXAMPLES.md](EXAMPLES.md)
 
 
 External code
@@ -35,55 +44,118 @@ The following external code is included in this repository:
 
 * https://sourceforge.net/projects/xbrz/files/xBRZ/ - xBRZ implementation
 
+Quick Start
+-----------
+
+### Pre-built Binaries (Easiest)
+
+Pre-built executables for Windows, Linux, and macOS are available on the [Releases page](https://github.com/benpm/xbrzscale/releases). Download, extract, and run!
+
+### Python (Recommended for scripting)
+
+```bash
+# Install Python wrapper (requires pre-built C++ library)
+cd python
+uv pip install -e .
+
+# Use from command line
+xbrzscale-py 4 input.png output.png
+
+# Or use in Python
+from xbrzscale import scale_image
+import numpy as np
+scaled = scale_image(image_array, scale=4)
+```
+
 Dependencies
 ------------
 
-The following dependencies are needed to compile xbrzscale:
+**For C++ compilation:**
+- CMake 3.14+
+- C++17 compiler
+- SDL2 and SDL2_image (automatically downloaded by CMake via FetchContent)
 
-* libsdl2-dev
-* libsdl2-image-dev
-
-On Windows said dependencies can be installed by doing the following:
-
-* [libsd12](https://lazyfoo.net/tutorials/SDL/01_hello_SDL/windows/mingw/index.php)
-* libsd12-image is done following the same process [with this download instead](https://www.libsdl.org/projects/SDL_image/)
-
-Under OSX they can be installed using macports
-
-* port install libsdl2_image
-* port install libsdl2
-
-Some additional libraries are needed. I'm sure you'll figure it out.
-
-If you need SDL1.2 support, check sdl1.2 git branch.
+**For Python wrapper:**
+- Python 3.8+
+- numpy
+- Pillow
+- Pre-built xbrz_shared library (build C++ project first)
 
 
-Downloading Pre-built Binaries
--------------------------------
+Building from Source
+--------------------
 
-Pre-built executables for Windows, Linux, and macOS are available on the [Releases page](https://github.com/USERNAME/xbrzscale/releases). Download the archive for your platform, extract it, and run the `xbrzscale` executable.
+### CMake (Recommended - All Platforms)
 
-Compiling
----------
+```bash
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . --config Release
+```
 
-For Mac and Linux:
+CMake automatically downloads and builds all dependencies. The executables will be in:
+- Windows: `build/Release/xbrzscale.exe`
+- Linux/macOS: `build/xbrzscale`
 
-run `make` and you should end up with a binary called `xbrzscale`.
+### Legacy Makefiles
 
-For Windows:
+**Linux/macOS:**
+```bash
+make
+```
 
-run `mingw32-make -f Makefile-win` and you should end up with a binary called `xbrzscale.exe`
+**Windows (MinGW):**
+```bash
+mingw32-make -f Makefile-win
+```
+
+Note: Legacy Makefiles require SDL2 libraries pre-installed on your system.
 
 Usage
 -----
 
-	`xbrztool scale_factor input_image output_image`
+### C++ Command Line
 
-* `scale_factor` - Controls how much your image should be scaled. It should be an integer between 2 and 5 (inclusive).
-* `input_image` - Input image is the filename of the image you want to scale. Image format can be anything that SDL_image supports.
-* `output_image` - Filename where the scaled image should be saved. The only supported format is PNG!
+```bash
+xbrzscale <scale_factor> <input_image> <output_image>
+```
 
-Please note I only tested the scaling on 32bit RGBA PNGs, I have no idea if this will work with 8bit indexed images.
+* `scale_factor` - Scale multiplier, must be between 2 and 6 (inclusive)
+* `input_image` - Input file (any format SDL_image supports: PNG, BMP, JPG, etc.)
+* `output_image` - Output file (PNG format only)
+
+**Example:**
+```bash
+xbrzscale 4 sprite.png sprite_4x.png
+```
+
+### Python API
+
+```python
+from xbrzscale import scale_image
+from PIL import Image
+import numpy as np
+
+# Load and scale
+img = Image.open("input.png")
+img_array = np.array(img)
+scaled = scale_image(img_array, scale=4)
+
+# Save result
+Image.fromarray(scaled, "RGBA").save("output.png")
+```
+
+**Note:** Scaling works best with pixel art and has been primarily tested with 32-bit RGBA PNGs.
+
+GitHub Actions
+--------------
+
+This repository includes automated workflows:
+
+- **Build:** Automatically builds executables for Windows, Linux, and macOS on every push
+- **Generate Examples:** Upscales example images and updates [EXAMPLES.md](EXAMPLES.md) with before/after comparisons
+
+See `.github/workflows/` for workflow configurations.
 
 
 
