@@ -1,5 +1,4 @@
-xBRZ upscaling commandline tool
-===============================
+# xBRZ upscaling commandline tool
 
 ![Build Status](https://github.com/benpm/xbrzscale/workflows/Build/badge.svg)
 
@@ -22,8 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
-Overview
---------
+## Overview
 
 This tool allows you to scale your graphics with the xBRZ algorithm, see https://en.wikipedia.org/wiki/Pixel-art_scaling_algorithms#xBR_family
 
@@ -38,15 +36,13 @@ This tool allows you to scale your graphics with the xBRZ algorithm, see https:/
 **See examples:** [EXAMPLES.md](EXAMPLES.md)
 
 
-External code
--------------
+## External code
 
 The following external code is included in this repository:
 
 * https://sourceforge.net/projects/xbrz/files/xBRZ/ - xBRZ implementation
 
-Quick Start
------------
+## Quick Start
 
 ### Pre-built Binaries (Easiest)
 
@@ -68,8 +64,7 @@ import numpy as np
 scaled = scale_image(image_array, scale=4)
 ```
 
-Dependencies
-------------
+## Dependencies
 
 **For C++ compilation:**
 - CMake 3.14+
@@ -83,8 +78,7 @@ Dependencies
 - Pre-built xbrz_shared library (build C++ project first)
 
 
-Building from Source
---------------------
+## Building from Source
 
 ### CMake (Recommended - All Platforms)
 
@@ -112,8 +106,7 @@ mingw32-make -f Makefile-win
 
 Note: Legacy Makefiles require SDL2 libraries pre-installed on your system.
 
-Usage
------
+## Usage
 
 ### C++ Command Line
 
@@ -162,8 +155,7 @@ For Aseprite users, we provide a plugin that integrates xBRZ scaling directly in
 
 See [aseprite-plugin/README.md](aseprite-plugin/README.md) for detailed installation and usage instructions.
 
-GitHub Actions
---------------
+## GitHub Actions
 
 This repository includes automated workflows:
 
