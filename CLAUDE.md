@@ -22,6 +22,29 @@ The CMake build automatically:
 
 Output files are located in `build/Release/` (or `build/` on Unix systems).
 
+### CMake Presets (Windows, Ninja Multi-Config)
+
+`CMakePresets.json` provides separate `windows-clang` and `windows-msvc` configure
+presets (each writes to its own `build/clang` or `build/msvc` directory) plus
+`*-debug` / `*-release` build presets.
+
+```bash
+# LLVM/clang (requires C:/Program Files/LLVM)
+cmake --preset windows-clang
+cmake --build --preset windows-clang-release    # or windows-clang-debug
+
+# MSVC (run from a Developer PowerShell / vcvars64 environment)
+cmake --preset windows-msvc
+cmake --build --preset windows-msvc-release     # or windows-msvc-debug
+```
+
+Outputs land in `build/<toolchain>/Release/` or `build/<toolchain>/Debug/`.
+
+The clang preset passes `-D__PRFCHWINTRIN_H -fno-builtin` to work around two
+SDL2 + modern-clang interactions: a `_m_prefetch` redefinition in
+`SDL_endian.h` and clang lowering loops in `SDL_stdinc.c` to libc
+`strlen`/`wcslen` calls that SDL itself does not link.
+
 ### Legacy Makefiles
 
 #### Linux/macOS
