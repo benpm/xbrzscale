@@ -1,9 +1,0 @@
-# Temporary files
-*.tmp
-*.temp
-xbrz_input_*.png
-xbrz_output_*.png
-
-# OS files
-.DS_Store
-Thumbs.db

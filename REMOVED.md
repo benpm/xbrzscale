@@ -1,9 +1,19 @@
 # REMOVED.md — Record of code stripped from this repository
 
-This repository was reduced to its Aseprite work (`aseprite-plugin/`, its packaging
-workflow, its test scripts, and its example sprite). Everything else — the C++ CLI,
-the xBRZ algorithm vendored source, the C API, the Python package, the build system,
-the example gallery, and the CI that produced it — was deleted.
+This repository has been emptied of working code. It is now an archive: this document
+plus the git history behind it. Two passes did the stripping:
+
+1. **Everything except the Aseprite work** — the C++ CLI, the vendored xBRZ sources, the
+   C API, the Python package, the build system, the example gallery and its CI
+   (§§1–12 below).
+2. **The Aseprite plugin itself** — the Lua extension, its test scripts, and its
+   packaging workflow (§13).
+
+What remains is `License.txt`, `examples/aseprite_test.ase`, the root `.gitignore`, the
+two rewritten docs, and this file.
+
+The successor product is a **fork of Aseprite** with xBRZ integrated natively, rather
+than the shell-out extension documented in §13.
 
 This file documents what was deleted in enough detail to recreate it.
 
@@ -11,9 +21,16 @@ This file documents what was deleted in enough detail to recreate it.
 
 **The fastest recreation path is git, not this file.** Nothing here is lost history:
 
+| Want | Commit |
+|---|---|
+| The Aseprite plugin (§13) | **`3d1abd6`** — last commit containing it |
+| Everything else (§§1–12) | **`138f912`** — last commit containing it |
+
 - **`138f912`** ("Add CMake presets for LLVM and MSVC with Ninja Multi-Config"), the last
-  commit on `aseprite` before the strip, is the only ref holding *everything* — recover
-  from here.
+  commit on `aseprite` before the first strip, is the only ref holding *everything* —
+  the CLI, the Python package, the build system, **and** the plugin.
+- **`3d1abd6`** ("Strip repo to Aseprite plugin…") is the plugin-only tree, with the
+  final corrected version of `aseprite-plugin/README.md`.
 - The **`master`** branch holds the original project but **not** the aseprite-era
   additions: `CMakePresets.json` and the preset documentation were added on the
   `aseprite` branch only, and `master` still pins SDL2 at `release-2.30.10`.
@@ -26,21 +43,16 @@ git checkout 138f912 -- CMakeLists.txt CMakePresets.json Makefile Makefile-win \
 
 Use this document when git is unavailable, or as a design summary.
 
-## ⚠️ Consequence for the plugin
+## ⚠️ No binaries exist anywhere
 
-`aseprite-plugin/xbrz-filter.lua` **shells out to an `xbrzscale` executable at runtime.**
-That executable's source was removed here, so the plugin has no in-repo way to build
-its own backend. To use the plugin you must supply the binary from one of:
+The removed `build.yml` (§9.1) was *designed* to publish `xbrzscale-windows.zip` /
+`-linux.tar.gz` / `-macos.tar.gz` on every release, and the old README advertised them
+as the easiest way to get the tool. **They do not exist** — `benpm/xbrzscale` has never
+published a GitHub release (verified with `gh release list` at strip time). Building
+from `138f912` is the only way to obtain a working `xbrzscale` binary.
 
-- A checkout of commit `138f912`, built with CMake (see §5). **This is the reliable path.**
-- Reconstruction from §1–§5 below.
-- ~~Prebuilt archives from GitHub releases~~ — the removed `build.yml` was *designed* to
-  publish `xbrzscale-windows.zip` / `-linux.tar.gz` / `-macos.tar.gz` on release, and the
-  old README advertised them, but **`benpm/xbrzscale` has no published releases**
-  (verified with `gh release list` at strip time). No prebuilt binary exists to download.
-
-The plugin searches for the binary in `build/Release/`, `build/`, `../build/Release/`,
-`../build/`, and the current directory / PATH — see the `xbrzPaths` table in the Lua source.
+This mattered for the plugin, which shelled out to that binary at runtime (§13); both
+halves are now gone, so nothing in this repo is runnable as-is.
 
 ---
 
@@ -603,3 +615,283 @@ __pycache__/
 
 plus `.idea/`. These were left in place — harmless, and correct again the moment any
 of the above is restored.
+
+---
+
+# 13. The Aseprite plugin — `aseprite-plugin/` (removed in the second pass)
+
+`3d1abd6` is the last commit containing it.
+
+The plugin was a **stopgap**: Aseprite has no xBRZ built in, and rather than patch
+Aseprite, this extension round-tripped the active cel through a temporary PNG and the
+external `xbrzscale` CLI. The successor approach is a genuine Aseprite fork with the
+scaler integrated natively, which makes all of the machinery below — temp files,
+executable discovery, subprocess invocation — unnecessary.
+
+## 13.1 `aseprite-plugin/package.json`
+
+The extension manifest, verbatim:
+
+```json
+{
+  "name": "xbrz-filter",
+  "displayName": "xBRZ Filter",
+  "description": "High-quality pixel art scaling using the xBRZ algorithm",
+  "version": "1.0.0",
+  "author": {
+    "name": "xbrzscale contributors",
+    "url": "https://github.com/benpm/xbrzscale"
+  },
+  "license": "GPL-3.0",
+  "categories": ["Scripts"],
+  "contributes": {
+    "scripts": [
+      { "path": "./xbrz-filter.lua" }
+    ]
+  }
+}
+```
+
+## 13.2 `aseprite-plugin/xbrz-filter.lua`
+
+The whole plugin, verbatim (185 lines in the original; the five near-identical command
+registrations in `init` are collapsed here, see the note below):
+
+```lua
+-- xBRZ Filter Plugin for Aseprite
+-- Applies high-quality pixel art scaling using the xBRZ algorithm
+
+local function applyXbrzFilter(scaleFactor)
+  local sprite = app.activeSprite
+  if not sprite then
+    app.alert("No active sprite")
+    return
+  end
+
+  local cel = app.activeCel
+  if not cel then
+    app.alert("No active cel")
+    return
+  end
+
+  -- Get the image from the active cel
+  local image = cel.image
+  if not image then
+    app.alert("No image in active cel")
+    return
+  end
+
+  app.transaction(function()
+    -- Create temporary file paths
+    local tempDir = os.getenv("TEMP") or os.getenv("TMP") or "/tmp"
+    local inputPath = tempDir .. "/xbrz_input_" .. os.time() .. ".png"
+    local outputPath = tempDir .. "/xbrz_output_" .. os.time() .. ".png"
+
+    -- Save the current image to a temporary file
+    image:saveAs(inputPath)
+
+    -- Find xbrzscale executable
+    -- Look in common locations
+    local xbrzPaths = {
+      "build/Release/xbrzscale.exe",
+      "build/Release/xbrzscale",
+      "build/xbrzscale.exe",
+      "build/xbrzscale",
+      "../build/Release/xbrzscale.exe",
+      "../build/Release/xbrzscale",
+      "../build/xbrzscale.exe",
+      "../build/xbrzscale",
+      "xbrzscale.exe",
+      "xbrzscale"
+    }
+
+    local xbrzCmd = nil
+    -- First try to find the file
+    for _, path in ipairs(xbrzPaths) do
+      local f = io.open(path, "r")
+      if f then
+        f:close()
+        -- Verify it's the right executable by running it
+        -- Convert forward slashes to backslashes for Windows compatibility
+        local execPath = string.gsub(path, "/", "\\")
+        local testCmd = '"' .. execPath .. '" 2>&1'
+        local handle = io.popen(testCmd)
+        if handle then
+          local result = handle:read("*a")
+          handle:close()
+          if result and (string.find(result, "usage") or string.find(result, "scale_factor")) then
+            xbrzCmd = execPath
+            break
+          end
+        end
+      end
+    end
+
+    if not xbrzCmd then
+      app.alert("xbrzscale executable not found. Please build xbrzscale first and ensure it's in the PATH or in the same directory as this plugin.")
+      -- Clean up temp file
+      os.remove(inputPath)
+      return
+    end
+
+    -- Run xbrzscale
+    local cmd = string.format('"%s" %d "%s" "%s"', xbrzCmd, scaleFactor, inputPath, outputPath)
+    local success = os.execute(cmd)
+
+    if not success or success ~= 0 then
+      app.alert("xBRZ filter failed to execute")
+      os.remove(inputPath)
+      os.remove(outputPath)
+      return
+    end
+
+    -- Load the scaled image
+    local scaledImage = Image{ fromFile=outputPath }
+    if not scaledImage then
+      app.alert("Failed to load scaled image")
+      os.remove(inputPath)
+      os.remove(outputPath)
+      return
+    end
+
+    -- Create a new sprite with the scaled image
+    local newSprite = Sprite(scaledImage.width, scaledImage.height, sprite.colorMode)
+    newSprite:setPalette(sprite.palettes[1])
+
+    -- Copy the scaled image to the first cel
+    local newLayer = newSprite.layers[1]
+    local newCel = newSprite:newCel(newLayer, 1, scaledImage, Point(0, 0))
+
+    -- Set the new sprite as active
+    app.activeSprite = newSprite
+
+    -- Clean up temporary files
+    os.remove(inputPath)
+    os.remove(outputPath)
+
+    app.alert("xBRZ " .. scaleFactor .. "x filter applied successfully!")
+  end)
+end
+
+function init(plugin)
+  -- Register xBRZ 2x filter command
+  plugin:newCommand{
+    id="XbrzFilter2x",
+    title="xBRZ 2x",
+    group="sprite_size",
+    onclick=function()
+      applyXbrzFilter(2)
+    end,
+    onenabled=function()
+      return app.activeSprite ~= nil and app.activeCel ~= nil
+    end
+  }
+
+  -- ... four more identical blocks: XbrzFilter3x / 4x / 5x / 6x ...
+end
+
+function exit(plugin)
+  -- Cleanup when plugin is unloaded
+end
+```
+
+> The five `newCommand` blocks in `init` were each written out in full in the original,
+> identical except for `id` (`XbrzFilter2x`…`XbrzFilter6x`), `title`
+> (`xBRZ 2x`…`xBRZ 6x`), and the integer passed to `applyXbrzFilter` (2…6). All five
+> used `group="sprite_size"`, which places them under **Sprite → Sprite Size**, and the
+> same `onenabled` guard requiring both an active sprite and an active cel.
+
+Behavioral points worth preserving if this is ever rebuilt:
+
+- **Non-destructive.** The source sprite is never touched; the result is a brand-new
+  `Sprite` carrying the original's `colorMode` and `palettes[1]`, and it is made active.
+- **Executable detection contract.** A candidate is accepted only if running it with no
+  arguments produces output containing `usage` or `scale_factor`. This is why the CLI's
+  no-args message mattered (§1).
+- **Windows path handling.** Forward slashes are rewritten to backslashes before
+  `io.popen`, and every path is wrapped in double quotes. See §13.6.
+- **Temp file naming.** `os.time()` has only second resolution, so two invocations in
+  the same second collide on both the input and output filenames.
+- **`os.execute` return check is suspect.** `if not success or success ~= 0` — in
+  Lua 5.3+ (which Aseprite uses) `os.execute` returns `true` on success rather than `0`,
+  so `success ~= 0` is true even on a clean run. Treat this as a latent bug to fix on
+  any rewrite, not a pattern to copy.
+- **Whole-cel only.** It scales `app.activeCel.image`, ignoring selections, other layers,
+  and other frames.
+
+## 13.3 `aseprite-plugin/.gitignore`
+
+```
+# Temporary files
+*.tmp
+*.temp
+xbrz_input_*.png
+xbrz_output_*.png
+
+# OS files
+.DS_Store
+Thumbs.db
+```
+
+## 13.4 `aseprite-plugin/README.md`
+
+End-user documentation: feature list; install via **Edit → Preferences → Extensions →
+Add Extension** or by copying the folder into `%APPDATA%\Aseprite\extensions\`
+(Windows) / `~/Library/Application Support/Aseprite/extensions/` (macOS) /
+`~/.config/aseprite/extensions/` (Linux); how to obtain the `xbrzscale` binary; the
+executable search-path list; usage via **Sprite → Sprite Size → xBRZ 2x–6x**; a
+"How It Works" summary of the export → scale → import round trip; requirements; and
+troubleshooting for "executable not found", "failed to execute", and "plugin doesn't
+appear in menu". GPL-3.0, crediting the xBRZ SourceForge project.
+
+## 13.5 `test-xbrz.lua`
+
+Batch test harness, run as `aseprite --batch --script test-xbrz.lua`. Five stages, each
+printing `✓`/`✗`, with `os.exit(1)` on failure of tests 1–3:
+
+1. `dofile("aseprite-plugin/xbrz-filter.lua")` inside `pcall` — does it load?
+2. `init` exists and is a function.
+3. `exit` exists and is a function.
+4. Replays the `xbrzPaths` discovery loop verbatim, printing each candidate checked and
+   the first 50 chars of output from any that runs. On total failure it prints the full
+   candidate list plus `mkdir build && cd build` / `cmake .. -DCMAKE_BUILD_TYPE=Release`
+   / `cmake --build . --config Release` — a warning, not a hard failure.
+5. Only if a binary was found: copies `examples/threeformsPJ2.png` to
+   `$TEMP/xbrz_test_input.png` (via `copy` on Windows, detected with `os.getenv("OS")`,
+   else `cp`), runs a real 2x scale, asserts the output file was created, then removes
+   both temp files. Self-skips with `(Skipping - no test image found)` when the source
+   PNG is absent — which it was, after §8 removed the example gallery.
+
+Ends by printing `All syntax tests passed! / Plugin is ready for installation.`
+
+## 13.6 `test-path.lua`
+
+A 25-line scratch script, not a test. It probed how Windows `io.popen` handles quoting
+and separators for `build/Release/xbrzscale.exe`, comparing
+`string.gsub(path, "/", "\\")` against a hardcoded `.\\build\\Release\\xbrzscale.exe`
+and printing the first 100 chars of each result. It is the working residue of commit
+`29cfe25` ("Fix Aseprite plugin executable detection on Windows") — the investigation
+that produced the backslash conversion in §13.2.
+
+## 13.7 `.github/workflows/package-aseprite-plugin.yml`
+
+`name: Package Aseprite Plugin`. Triggers: push and pull_request restricted to paths
+`aseprite-plugin/**` and the workflow file itself, plus `workflow_dispatch` and
+`release: [published]`. One job, `package`, on `ubuntu-latest`:
+
+1. `actions/checkout@v5`.
+2. `cd aseprite-plugin && zip -r ../xbrz-filter.aseprite-extension package.json xbrz-filter.lua`
+   — it archives **only those two files**; a third plugin file would have needed adding
+   here explicitly.
+3. `actions/upload-artifact@v4`, artifact name `xbrz-filter-aseprite-extension`.
+4. `if: github.event_name == 'release'` —
+   `gh release upload ${{ github.event.release.tag_name }} xbrz-filter.aseprite-extension`
+   with `GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}`.
+
+Introduced in commit `ce60ead`. It never actually published anything, since the repo has
+no releases.
+
+## 13.8 Kept
+
+`examples/aseprite_test.ase` was **not** removed. It is an Aseprite test sprite, useful
+to any future Aseprite work and independent of the plugin.
