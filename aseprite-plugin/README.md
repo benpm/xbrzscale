@@ -11,16 +11,30 @@ High-quality pixel art scaling plugin for Aseprite using the xBRZ algorithm.
 
 ## Installation
 
-### 1. Build xbrzscale
+### 1. Obtain the xbrzscale executable
 
-First, build the xbrzscale executable:
+This plugin does not scale images itself — it shells out to an `xbrzscale` binary.
+**That binary is no longer built from this repository**; its source was removed when the
+repo was narrowed to the Aseprite extension. See [../REMOVED.md](../REMOVED.md).
+
+Build it from the last commit that contained it, `138f912`:
 
 ```bash
-cd ..  # Go to the project root
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . --config Release
+git worktree add ../xbrzscale-cli 138f912
+cd ../xbrzscale-cli
+cmake --preset windows-clang          # or: mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build --preset windows-clang-release
 ```
+
+CMake fetches SDL2 and SDL2_image automatically. The executable lands in
+`build/clang/Release/` (preset) or `build/Release/` (plain CMake), with the SDL2 DLLs
+copied alongside it on Windows.
+
+There are **no prebuilt binaries to download** — this repository has never published a
+GitHub release. If you need the CLI without building it, REMOVED.md §1–§5 documents it
+in enough detail to reimplement; anything you write must print a usage message
+containing the word `usage` or `scale_factor` when run with no arguments, or the
+detection below will not recognize it.
 
 ### 2. Install the Plugin
 
@@ -61,11 +75,14 @@ The plugin needs to find the `xbrzscale` executable. You can either:
 - **Copy to Aseprite folder**: Copy xbrzscale executable next to Aseprite executable
 - **Local copy**: Place xbrzscale in the same directory as the plugin
 
-The plugin automatically searches these locations:
-- Current directory (`.`)
-- Build directories (`./build/`, `./build/Release/`)
-- Parent directories (`../`, `../build/`)
-- System PATH
+The plugin searches these paths in order, trying both the `.exe` and extension-less name
+at each, and accepting the first that runs and prints a recognizable usage message:
+
+- `build/Release/xbrzscale`
+- `build/xbrzscale`
+- `../build/Release/xbrzscale`
+- `../build/xbrzscale`
+- `xbrzscale` (current directory, then PATH)
 
 ## Usage
 
@@ -91,7 +108,8 @@ The plugin will create a new sprite with the scaled image.
 ## Requirements
 
 - Aseprite (tested with latest version)
-- xbrzscale executable (built from this repository)
+- An `xbrzscale` executable — see step 1; **not** built by this repository anymore
+- On Windows, `SDL2.dll` and `SDL2_image.dll` next to that executable
 
 ## Troubleshooting
 

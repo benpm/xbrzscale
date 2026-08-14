@@ -4,199 +4,103 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-xbrzscale is a commandline tool for scaling pixel art images using the xBRZ algorithm (https://en.wikipedia.org/wiki/Pixel-art_scaling_algorithms#xBR_family). It supports scaling factors from 2x to 6x and outputs PNG files.
+This repository holds **xBRZ Filter**, an Aseprite extension that upscales the active
+cel with the xBRZ pixel-art scaling algorithm at factors 2x–6x.
 
-## Build Commands
+The repo was previously the `xbrzscale` C++ CLI project. Everything that was not part of
+the Aseprite work — the CLI, `libxbrzscale`, the vendored `xbrz/` sources, the C API,
+the Python ctypes package, CMake/Makefiles, the example gallery and its CI — has been
+removed. **[REMOVED.md](REMOVED.md) is the record of all of it**, detailed enough to
+recreate it; commit `138f912` and the `master` branch still contain the code.
 
-### CMake (Recommended - Cross-platform)
-```bash
-mkdir build && cd build
-cmake ..                            # Configure the build
-cmake --build . --config Release    # Build the project
-```
+## Critical: the external binary dependency
 
-The CMake build automatically:
-- Downloads and builds SDL2 and SDL2_image dependencies via FetchContent
-- Copies required DLLs to the output directory on Windows
-- Works with Visual Studio, MinGW, Ninja, and Unix Makefiles generators
+`aseprite-plugin/xbrz-filter.lua` does not implement xBRZ. It shells out to an
+`xbrzscale` executable that **is no longer built from this repository**. Before
+changing anything about the invocation path, know these two contracts:
 
-Output files are located in `build/Release/` (or `build/` on Unix systems).
+1. **Discovery probe.** The plugin finds the binary by running each candidate with no
+   arguments and checking that the combined output contains `usage` or `scale_factor`.
+   Any replacement binary must print a usage message containing those words on stderr
+   when called with the wrong argument count.
+2. **CLI shape.** `xbrzscale <scale_factor> <input.png> <output.png>`, scale 2–6,
+   output always PNG, exit 0 on success.
 
-### CMake Presets (Windows, Ninja Multi-Config)
+Candidate paths (in order): `build/Release/xbrzscale{.exe,}`, `build/xbrzscale{.exe,}`,
+`../build/Release/xbrzscale{.exe,}`, `../build/xbrzscale{.exe,}`, `xbrzscale{.exe,}`.
+Forward slashes are rewritten to backslashes before `io.popen` for Windows.
 
-`CMakePresets.json` provides separate `windows-clang` and `windows-msvc` configure
-presets (each writes to its own `build/clang` or `build/msvc` directory) plus
-`*-debug` / `*-release` build presets.
+Obtain the binary by building commit `138f912` with CMake, or by reconstructing it from
+REMOVED.md §1–§5. There are no prebuilt binaries — the repo has no published releases,
+and `master` predates the aseprite-branch build additions.
 
-```bash
-# LLVM/clang (requires C:/Program Files/LLVM)
-cmake --preset windows-clang
-cmake --build --preset windows-clang-release    # or windows-clang-debug
-
-# MSVC (run from a Developer PowerShell / vcvars64 environment)
-cmake --preset windows-msvc
-cmake --build --preset windows-msvc-release     # or windows-msvc-debug
-```
-
-Outputs land in `build/<toolchain>/Release/` or `build/<toolchain>/Debug/`.
-
-The clang preset passes `-D__PRFCHWINTRIN_H -fno-builtin` to work around two
-SDL2 + modern-clang interactions: a `_m_prefetch` redefinition in
-`SDL_endian.h` and clang lowering loops in `SDL_stdinc.c` to libc
-`strlen`/`wcslen` calls that SDL itself does not link.
-
-### Legacy Makefiles
-
-#### Linux/macOS
-```bash
-make                # Build the xbrzscale binary
-make clean          # Remove build artifacts
-```
-
-#### Windows (MinGW)
-```bash
-mingw32-make -f Makefile-win        # Build xbrzscale.exe
-mingw32-make -f Makefile-win clean  # Remove build artifacts
-```
-
-**Note:** Legacy Makefiles require SDL2 libraries to be pre-installed on the system.
-
-## Dependencies
-
-Required libraries:
-- **libsdl2-dev** - SDL2 core library
-- **libsdl2-image-dev** - SDL2 image loading library
-
-The project uses C++17 standard.
-
-## Architecture
-
-The codebase consists of multiple implementations and components:
-
-### 1. Command-Line Interface (`xbrzscale.cpp`)
-- Entry point with argument parsing
-- Validates scale factor (2-6 inclusive)
-- Initializes SDL2, loads input image, saves output PNG
-- Thin wrapper around libxbrzscale
-
-### 2. Scaling Library (`libxbrzscale.cpp/h`)
-- Provides `libxbrzscale::scale()` - main scaling function
-- Converts between SDL_Surface and uint32_t arrays
-- Handles pixel format conversion (SDL surface ↔ ARGB uint32 arrays)
-- Utility functions for SDL surface manipulation:
-  - `SDL_GetPixel()` / `SDL_PutPixel()` - pixel access for various bit depths
-  - `createARGBSurface()` - creates 32-bit ARGB surfaces
-  - `surfaceToUint32()` / `uint32toSurface()` - format conversion
-
-### 3. xBRZ Algorithm (`xbrz/` directory)
-- Third-party library from https://sourceforge.net/projects/xbrz/
-- Currently at version 1.8
-- Core scaling algorithm implementation
-- Accepts ARGB format uint32 arrays
-- Supports scale factors 2-6, ColorFormat enum, and optional ScalerCfg parameters
-
-### 4. C API Wrapper (`xbrz_c_api.cpp`)
-- Simple C-compatible interface for external bindings
-- Exports `xbrz_scale()` and `xbrz_version()` functions
-- Used by Python ctypes wrapper
-- Built as shared library (`xbrz_shared.dll/.so/.dylib`)
-- No SDL dependencies (pure xBRZ algorithm)
-
-### 5. Python Implementation (`python/` directory)
-- Full-featured Python wrapper using ctypes
-- Package manager: uv with `pyproject.toml`
-- Dependencies: numpy (arrays) + Pillow (image I/O)
-- Two interfaces:
-  - **CLI tool**: `xbrzscale-py <scale> <input> <output>`
-  - **Python API**: `from xbrzscale import scale_image`
-- Automatic library discovery in build directories
-- Comprehensive error handling and validation
-
-**Python Architecture:**
-- `library.py`: Automatic library discovery with ctypes
-- `wrapper.py`: Efficient numpy ↔ C array conversion (RGBA ↔ ARGB uint32)
-- `__main__.py`: CLI with comprehensive error handling
-- Supports all image formats Pillow can read, outputs PNG
-
-## Data Flow
+## Layout
 
 ```
-Input Image (any SDL_image format)
-    ↓
-SDL_Surface (loaded by IMG_Load)
-    ↓
-uint32_t array (ARGB format via surfaceToUint32)
-    ↓
-xbrz::scale() - applies pixel art scaling algorithm
-    ↓
-uint32_t array (scaled)
-    ↓
-SDL_Surface (via uint32toSurface)
-    ↓
-PNG file (saved via IMG_SavePNG)
+aseprite-plugin/
+├── package.json      extension manifest — name `xbrz-filter`, contributes ./xbrz-filter.lua
+├── xbrz-filter.lua   the plugin
+├── README.md         end-user install/usage/troubleshooting
+└── .gitignore        temp artifacts (xbrz_input_*.png, xbrz_output_*.png)
+test-xbrz.lua         batch test harness
+test-path.lua         scratch script for Windows path/quoting behavior under io.popen
+examples/aseprite_test.ase
+.github/workflows/package-aseprite-plugin.yml
+License.txt           GPL-3.0
+REMOVED.md
 ```
 
-## Build Artifacts
+## How the plugin works
 
-The CMake build produces:
-- **xbrzscale** (or xbrzscale.exe on Windows) - C++ CLI executable
-- **libxbrzscale.a** - static library with SDL2 integration
-- **xbrz.a** - static xBRZ algorithm library
-- **xbrz_shared** (dll/so/dylib) - shared library for Python bindings
-- Required DLLs on Windows: SDL2.dll, SDL2_image.dll (auto-copied to output)
+`init(plugin)` registers five commands — `XbrzFilter2x` … `XbrzFilter6x`, titled
+`xBRZ 2x`…`xBRZ 6x`, all in group `sprite_size` (Sprite → Sprite Size menu). Each is
+enabled only when `app.activeSprite` and `app.activeCel` are both non-nil, and calls
+`applyXbrzFilter(n)`. `exit(plugin)` is a no-op stub.
 
-The Python package (`python/`) requires the C++ shared library to be built first.
+`applyXbrzFilter(scaleFactor)` runs inside `app.transaction`:
+
+1. Guards on active sprite / cel / image, alerting and returning if any is missing.
+2. Builds temp paths from `$TEMP` / `$TMP` / `/tmp` plus `os.time()`:
+   `xbrz_input_<t>.png`, `xbrz_output_<t>.png`.
+3. `image:saveAs(inputPath)`.
+4. Locates the executable via the probe described above; alerts and cleans up if not found.
+5. `os.execute('"<exe>" <scale> "<in>" "<out>"')`.
+6. `Image{ fromFile=outputPath }`, then creates a **new** `Sprite` at the scaled
+   dimensions with the source's `colorMode`, applies `sprite.palettes[1]`, and puts the
+   image in a new cel at `Point(0,0)`.
+7. Sets `app.activeSprite` to the new sprite, removes both temp files, alerts success.
+
+Note the source sprite is never modified — the result is always a new sprite.
 
 ## Testing
 
-### C++ Testing
-Manual testing workflow:
-1. Build the tool
-2. Run with test images: `./xbrzscale <scale_factor> <input_image> <output_image>`
-3. Verify output visually
-
-### Python Testing
-```bash
-cd python
-uv pip install -e .
-xbrzscale-py 4 test_input.png test_output.png
-```
-
-Or use the Python API directly in scripts.
-
-### Automated Testing
-GitHub Actions workflows automatically:
-- Build executables on Windows, Linux, and macOS
-- Run basic smoke tests
-- Generate example gallery with upscaled images
-- Create releases with pre-built binaries
-
-Note: Scaling has been primarily tested with 32-bit RGBA PNGs. Support for 8-bit indexed images is untested.
-
-## GitHub Actions Workflows
-
-### Build Workflow (`.github/workflows/build.yml`)
-- Triggers: Push, pull requests, releases
-- Builds on: Windows, Linux, macOS
-- Uploads artifacts for all platforms
-- Automatically creates release archives on tags
-- Uploads binaries to GitHub releases
-
-### Generate Examples Workflow (`.github/workflows/generate-examples.yml`)
-- Triggers: Changes to example images or workflow
-- Builds xbrzscale on Windows
-- Upscales all images in `examples/` (2x, 3x, 4x)
-- Generates EXAMPLES.md with before/after comparisons
-- Auto-commits results back to repository
-
-## Python Package Installation
-
-After building the C++ shared library:
+There is no automated test suite. The harness is a batch Lua script:
 
 ```bash
-cd python
-uv venv                  # Create virtual environment
-uv pip install -e .      # Install in development mode
+aseprite --batch --script test-xbrz.lua
 ```
 
-The Python package will automatically find the shared library in `../build/Release/` or `../build/`.
+It checks that the plugin file loads (`dofile`), that `init` and `exit` exist, and that
+the executable-discovery loop finds a working binary; if `examples/threeformsPJ2.png` is
+present it also runs a real 2x scale end-to-end. That PNG was removed with the example
+gallery, so that last stage now self-skips — restore it from git to exercise it.
+
+Beyond that, verify in the GUI: open `examples/aseprite_test.ase`, run each scale
+factor, confirm the new sprite's dimensions, color mode, and palette.
+
+## Packaging
+
+`.github/workflows/package-aseprite-plugin.yml` zips `package.json` and
+`xbrz-filter.lua` into `xbrz-filter.aseprite-extension`, uploads it as an artifact, and
+attaches it to published releases. It triggers on changes to `aseprite-plugin/**` or the
+workflow itself, on PRs touching those paths, on `workflow_dispatch`, and on release.
+
+Note the archive contains **only** those two files — a new plugin file must be added to
+the `zip` command in the workflow or it will not ship.
+
+## Conventions
+
+- Lua for the plugin, targeting the Aseprite scripting API (`app.*`, `Sprite`, `Image`,
+  `Point`, `plugin:newCommand`).
+- User-facing errors go through `app.alert`, and always clean up temp files before returning.
+- GPL-3.0-or-later, matching xBRZ and the original xbrzscale.

@@ -1,169 +1,80 @@
-# xBRZ upscaling commandline tool
+# xBRZ Filter — Aseprite extension
 
-![Build Status](https://github.com/benpm/xbrzscale/workflows/Build/badge.svg)
+An Aseprite extension that applies xBRZ pixel-art upscaling to the active cel, at
+factors 2x through 6x. See
+<https://en.wikipedia.org/wiki/Pixel-art_scaling_algorithms#xBR_family> for the
+algorithm family.
 
-Copyright (c) 2020 Przemysław Grzywacz <nexather@gmail.com>
+This repository is now focused on the Aseprite extension. The C++ CLI tool, the C API,
+the Python wrapper, and the build system that used to live here have been removed —
+see **[REMOVED.md](REMOVED.md)** for a full record of what they were and how to
+recreate them, and the `master` branch (or commit `138f912`) for the code itself.
 
-This file is part of xbrzscale.
+## ⚠️ Runtime requirement
 
-xbrzscale is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-
-
-## Overview
-
-This tool allows you to scale your graphics with the xBRZ algorithm, see https://en.wikipedia.org/wiki/Pixel-art_scaling_algorithms#xBR_family
-
-**Features:**
-- Scale pixel art images 2x to 6x
-- Preserves sharp edges and avoids blurriness
-- Cross-platform (Windows, Linux, macOS)
-- C++ CLI tool and Python wrapper
-- **Aseprite plugin** for direct integration with the pixel art editor
-- Automated example gallery generation
-
-**See examples:** [EXAMPLES.md](EXAMPLES.md)
-
-
-## External code
-
-The following external code is included in this repository:
-
-* https://sourceforge.net/projects/xbrz/files/xBRZ/ - xBRZ implementation
-
-## Quick Start
-
-### Pre-built Binaries (Easiest)
-
-Pre-built executables for Windows, Linux, and macOS are available on the [Releases page](https://github.com/benpm/xbrzscale/releases). Download, extract, and run!
-
-### Python (Recommended for scripting)
+The extension does not upscale in-process. It writes the cel to a temporary PNG, shells
+out to an **`xbrzscale` executable**, and reads the result back. That executable is no
+longer built from this repository, so you must supply it:
 
 ```bash
-# Install Python wrapper (requires pre-built C++ library)
-cd python
-uv pip install -e .
-
-# Use from command line
-xbrzscale-py 4 input.png output.png
-
-# Or use in Python
-from xbrzscale import scale_image
-import numpy as np
-scaled = scale_image(image_array, scale=4)
+git worktree add ../xbrzscale-cli 138f912
+cd ../xbrzscale-cli && cmake --preset windows-clang && cmake --build --preset windows-clang-release
 ```
 
-## Dependencies
+or reconstruct it from the notes in [REMOVED.md](REMOVED.md). There are **no prebuilt
+binaries** — this repo has never published a release, despite the old README saying otherwise.
 
-**For C++ compilation:**
-- CMake 3.14+
-- C++17 compiler
-- SDL2 and SDL2_image (automatically downloaded by CMake via FetchContent)
+Put the binary somewhere the extension looks — `build/Release/`, `build/`,
+`../build/Release/`, `../build/`, or on `PATH` / next to the Aseprite executable.
+On Windows the SDL2 DLLs (`SDL2.dll`, `SDL2_image.dll`) must sit beside it.
 
-**For Python wrapper:**
-- Python 3.8+
-- numpy
-- Pillow
-- Pre-built xbrz_shared library (build C++ project first)
+## Install
 
+**Option A — Aseprite UI:** Edit → Preferences → Extensions → Add Extension, and select
+the `aseprite-plugin` folder (or a packaged `.aseprite-extension` zip). Restart Aseprite.
 
-## Building from Source
+**Option B — copy into the extensions directory:**
 
-### CMake (Recommended - All Platforms)
+| OS | Path |
+|---|---|
+| Windows | `%APPDATA%\Aseprite\extensions\` |
+| macOS | `~/Library/Application Support/Aseprite/extensions/` |
+| Linux | `~/.config/aseprite/extensions/` |
+
+A packaged `xbrz-filter.aseprite-extension` zip is built on every push by
+`.github/workflows/package-aseprite-plugin.yml` and attached to releases.
+
+## Use
+
+Open a sprite, select the cel to scale, then **Sprite → Sprite Size → xBRZ 2x / 3x / 4x
+/ 5x / 6x**. The result opens as a **new sprite**, preserving the original's color mode
+and first palette; the source sprite is untouched.
+
+## Repository contents
+
+```
+aseprite-plugin/            the extension
+├── package.json            Aseprite extension manifest
+├── xbrz-filter.lua         plugin: commands, executable discovery, scale pipeline
+├── README.md               install / usage / troubleshooting
+└── .gitignore
+test-xbrz.lua               harness: loads the plugin, checks init/exit, probes for the
+                            binary, runs a real 2x scale if a sample image is present
+test-path.lua               scratch: Windows path-quoting experiments for io.popen
+examples/aseprite_test.ase  test sprite
+.github/workflows/package-aseprite-plugin.yml
+License.txt                 GPL-3.0
+REMOVED.md                  what was stripped from this repo, and how to restore it
+```
+
+Run the test harness with:
 
 ```bash
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . --config Release
+aseprite --batch --script test-xbrz.lua
 ```
 
-CMake automatically downloads and builds all dependencies. The executables will be in:
-- Windows: `build/Release/xbrzscale.exe`
-- Linux/macOS: `build/xbrzscale`
+## License
 
-### Legacy Makefiles
-
-**Linux/macOS:**
-```bash
-make
-```
-
-**Windows (MinGW):**
-```bash
-mingw32-make -f Makefile-win
-```
-
-Note: Legacy Makefiles require SDL2 libraries pre-installed on your system.
-
-## Usage
-
-### C++ Command Line
-
-```bash
-xbrzscale <scale_factor> <input_image> <output_image>
-```
-
-* `scale_factor` - Scale multiplier, must be between 2 and 6 (inclusive)
-* `input_image` - Input file (any format SDL_image supports: PNG, BMP, JPG, etc.)
-* `output_image` - Output file (PNG format only)
-
-**Example:**
-```bash
-xbrzscale 4 sprite.png sprite_4x.png
-```
-
-### Python API
-
-```python
-from xbrzscale import scale_image
-from PIL import Image
-import numpy as np
-
-# Load and scale
-img = Image.open("input.png")
-img_array = np.array(img)
-scaled = scale_image(img_array, scale=4)
-
-# Save result
-Image.fromarray(scaled, "RGBA").save("output.png")
-```
-
-**Note:** Scaling works best with pixel art and has been primarily tested with 32-bit RGBA PNGs.
-
-### Aseprite Plugin
-
-For Aseprite users, we provide a plugin that integrates xBRZ scaling directly into the editor:
-
-1. **Build xbrzscale** (see Building from Source above)
-2. **Install the plugin**: Copy `aseprite-plugin/` folder to your Aseprite extensions directory
-   - Windows: `%APPDATA%\Aseprite\extensions\`
-   - macOS: `~/Library/Application Support/Aseprite/extensions/`
-   - Linux: `~/.config/aseprite/extensions/`
-3. **Restart Aseprite**
-4. **Use from menu**: Sprite > Sprite Size > xBRZ 2x/3x/4x/5x/6x
-
-See [aseprite-plugin/README.md](aseprite-plugin/README.md) for detailed installation and usage instructions.
-
-## GitHub Actions
-
-This repository includes automated workflows:
-
-- **Build:** Automatically builds executables for Windows, Linux, and macOS on every push
-- **Generate Examples:** Upscales example images and updates [EXAMPLES.md](EXAMPLES.md) with before/after comparisons
-
-See `.github/workflows/` for workflow configurations.
-
-
-
-
+GPL-3.0-or-later. The xBRZ algorithm is from
+<https://sourceforge.net/projects/xbrz/>. The original `xbrzscale` CLI is
+Copyright (c) 2014 Przemysław Grzywacz <nexather@gmail.com>.
