@@ -4,176 +4,47 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-xbrzscale is a commandline tool for scaling pixel art images using the xBRZ algorithm (https://en.wikipedia.org/wiki/Pixel-art_scaling_algorithms#xBR_family). It supports scaling factors from 2x to 6x and outputs PNG files.
+**This repository is an archive and contains no working code.** There is nothing to
+build, run, or test here.
 
-## Build Commands
+It held a series of experiments in applying xBRZ pixel-art upscaling to a pixel-art
+workflow: a C++ CLI over SDL2 wrapping vendored xBRZ 1.8, a C API and shared library,
+a Python ctypes package, a CMake/Makefile build system with cross-platform CI, and an
+Aseprite extension that shelled out to the CLI. All of it was removed in two passes.
 
-### CMake (Recommended - Cross-platform)
-```bash
-mkdir build && cd build
-cmake ..                            # Configure the build
-cmake --build . --config Release    # Build the project
-```
+The successor product is a **fork of Aseprite with xBRZ integrated natively** — which
+lives elsewhere, not in this repo.
 
-The CMake build automatically:
-- Downloads and builds SDL2 and SDL2_image dependencies via FetchContent
-- Copies required DLLs to the output directory on Windows
-- Works with Visual Studio, MinGW, Ninja, and Unix Makefiles generators
-
-Output files are located in `build/Release/` (or `build/` on Unix systems).
-
-### Legacy Makefiles
-
-#### Linux/macOS
-```bash
-make                # Build the xbrzscale binary
-make clean          # Remove build artifacts
-```
-
-#### Windows (MinGW)
-```bash
-mingw32-make -f Makefile-win        # Build xbrzscale.exe
-mingw32-make -f Makefile-win clean  # Remove build artifacts
-```
-
-**Note:** Legacy Makefiles require SDL2 libraries to be pre-installed on the system.
-
-## Dependencies
-
-Required libraries:
-- **libsdl2-dev** - SDL2 core library
-- **libsdl2-image-dev** - SDL2 image loading library
-
-The project uses C++17 standard.
-
-## Architecture
-
-The codebase consists of multiple implementations and components:
-
-### 1. Command-Line Interface (`xbrzscale.cpp`)
-- Entry point with argument parsing
-- Validates scale factor (2-6 inclusive)
-- Initializes SDL2, loads input image, saves output PNG
-- Thin wrapper around libxbrzscale
-
-### 2. Scaling Library (`libxbrzscale.cpp/h`)
-- Provides `libxbrzscale::scale()` - main scaling function
-- Converts between SDL_Surface and uint32_t arrays
-- Handles pixel format conversion (SDL surface ↔ ARGB uint32 arrays)
-- Utility functions for SDL surface manipulation:
-  - `SDL_GetPixel()` / `SDL_PutPixel()` - pixel access for various bit depths
-  - `createARGBSurface()` - creates 32-bit ARGB surfaces
-  - `surfaceToUint32()` / `uint32toSurface()` - format conversion
-
-### 3. xBRZ Algorithm (`xbrz/` directory)
-- Third-party library from https://sourceforge.net/projects/xbrz/
-- Currently at version 1.8
-- Core scaling algorithm implementation
-- Accepts ARGB format uint32 arrays
-- Supports scale factors 2-6, ColorFormat enum, and optional ScalerCfg parameters
-
-### 4. C API Wrapper (`xbrz_c_api.cpp`)
-- Simple C-compatible interface for external bindings
-- Exports `xbrz_scale()` and `xbrz_version()` functions
-- Used by Python ctypes wrapper
-- Built as shared library (`xbrz_shared.dll/.so/.dylib`)
-- No SDL dependencies (pure xBRZ algorithm)
-
-### 5. Python Implementation (`python/` directory)
-- Full-featured Python wrapper using ctypes
-- Package manager: uv with `pyproject.toml`
-- Dependencies: numpy (arrays) + Pillow (image I/O)
-- Two interfaces:
-  - **CLI tool**: `xbrzscale-py <scale> <input> <output>`
-  - **Python API**: `from xbrzscale import scale_image`
-- Automatic library discovery in build directories
-- Comprehensive error handling and validation
-
-**Python Architecture:**
-- `library.py`: Automatic library discovery with ctypes
-- `wrapper.py`: Efficient numpy ↔ C array conversion (RGBA ↔ ARGB uint32)
-- `__main__.py`: CLI with comprehensive error handling
-- Supports all image formats Pillow can read, outputs PNG
-
-## Data Flow
+## Contents
 
 ```
-Input Image (any SDL_image format)
-    ↓
-SDL_Surface (loaded by IMG_Load)
-    ↓
-uint32_t array (ARGB format via surfaceToUint32)
-    ↓
-xbrz::scale() - applies pixel art scaling algorithm
-    ↓
-uint32_t array (scaled)
-    ↓
-SDL_Surface (via uint32toSurface)
-    ↓
-PNG file (saved via IMG_SavePNG)
+REMOVED.md                  the record of everything deleted (~900 lines)
+examples/aseprite_test.ase  Aseprite test sprite, kept for future work
+License.txt                 GPL-3.0
+README.md                   archive notice
+.gitignore                  retained; entries are inert until code is restored
 ```
 
-## Build Artifacts
+## Working here
 
-The CMake build produces:
-- **xbrzscale** (or xbrzscale.exe on Windows) - C++ CLI executable
-- **libxbrzscale.a** - static library with SDL2 integration
-- **xbrz.a** - static xBRZ algorithm library
-- **xbrz_shared** (dll/so/dylib) - shared library for Python bindings
-- Required DLLs on Windows: SDL2.dll, SDL2_image.dll (auto-copied to output)
+Almost any request about this repo is really a request about code that was removed.
+Before answering from the docs:
 
-The Python package (`python/`) requires the C++ shared library to be built first.
+- **`REMOVED.md` is the authority on what existed.** It carries verbatim source for the
+  small files (the C API, `libxbrzscale.h`, both Makefiles, the plugin's Lua and
+  manifest), algorithm-level descriptions of the larger ones, dependency pins, and the
+  reasoning behind non-obvious build flags. It is organized §1–§13 by component.
+- **Git is the authority on the code itself.** `138f912` holds everything (CLI, Python,
+  build system, plugin); `3d1abd6` holds the plugin-only tree. `master` is *not* a
+  complete ref — `CMakePresets.json` and the SDL2 `release-2.32.10` bump were added on
+  the `aseprite` branch only. Use `git show <commit>:<path>` to read a removed file
+  rather than reconstructing it from REMOVED.md prose.
 
-## Testing
+If asked to restore something, prefer `git checkout <commit> -- <paths>` over retyping
+from the notes, and re-read REMOVED.md for the caveats attached to that component —
+several document known bugs preserved from upstream (the `setEnableOutput` parameter
+that is ignored, a leak in `libxbrzscale::scale`, the plugin's incorrect `os.execute`
+return check).
 
-### C++ Testing
-Manual testing workflow:
-1. Build the tool
-2. Run with test images: `./xbrzscale <scale_factor> <input_image> <output_image>`
-3. Verify output visually
-
-### Python Testing
-```bash
-cd python
-uv pip install -e .
-xbrzscale-py 4 test_input.png test_output.png
-```
-
-Or use the Python API directly in scripts.
-
-### Automated Testing
-GitHub Actions workflows automatically:
-- Build executables on Windows, Linux, and macOS
-- Run basic smoke tests
-- Generate example gallery with upscaled images
-- Create releases with pre-built binaries
-
-Note: Scaling has been primarily tested with 32-bit RGBA PNGs. Support for 8-bit indexed images is untested.
-
-## GitHub Actions Workflows
-
-### Build Workflow (`.github/workflows/build.yml`)
-- Triggers: Push, pull requests, releases
-- Builds on: Windows, Linux, macOS
-- Uploads artifacts for all platforms
-- Automatically creates release archives on tags
-- Uploads binaries to GitHub releases
-
-### Generate Examples Workflow (`.github/workflows/generate-examples.yml`)
-- Triggers: Changes to example images or workflow
-- Builds xbrzscale on Windows
-- Upscales all images in `examples/` (2x, 3x, 4x)
-- Generates EXAMPLES.md with before/after comparisons
-- Auto-commits results back to repository
-
-## Python Package Installation
-
-After building the C++ shared library:
-
-```bash
-cd python
-uv venv                  # Create virtual environment
-uv pip install -e .      # Install in development mode
-```
-
-The Python package will automatically find the shared library in `../build/Release/` or `../build/`.
+Do not restore the vendored `xbrz/` sources by hand; fetch xBRZ 1.8 from
+<https://sourceforge.net/projects/xbrz/files/xBRZ/>.
