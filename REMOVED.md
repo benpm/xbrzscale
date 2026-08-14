@@ -31,9 +31,14 @@ This file documents what was deleted in enough detail to recreate it.
   the CLI, the Python package, the build system, **and** the plugin.
 - **`3d1abd6`** ("Strip repo to Aseprite plugin…") is the plugin-only tree, with the
   final corrected version of `aseprite-plugin/README.md`.
-- The **`master`** branch holds the original project but **not** the aseprite-era
-  additions: `CMakePresets.json` and the preset documentation were added on the
-  `aseprite` branch only, and `master` still pins SDL2 at `release-2.30.10`.
+- **`master` now *is* this archive.** The `aseprite` branch was merged into it
+  (merge commit `76a0055`) taking the aseprite tree wholesale, so both branches have
+  identical trees. Every commit above is reachable from master's own history.
+- The **pre-merge master** — `dc61ed2`, the merge's first parent, and where
+  `origin/master` still points until this is pushed — holds the original project but
+  **not** the aseprite-era additions: `CMakePresets.json` and the preset documentation
+  were added on the `aseprite` branch only, and `dc61ed2` still pins SDL2 at
+  `release-2.30.10`. Prefer `138f912` over it for recovery.
 - Upstream of the original project: `git@github.com:atheros/xbrzscale.git` (remote `upstream`).
 
 ```bash

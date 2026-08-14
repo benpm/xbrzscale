@@ -35,10 +35,11 @@ Before answering from the docs:
   manifest), algorithm-level descriptions of the larger ones, dependency pins, and the
   reasoning behind non-obvious build flags. It is organized §1–§13 by component.
 - **Git is the authority on the code itself.** `138f912` holds everything (CLI, Python,
-  build system, plugin); `3d1abd6` holds the plugin-only tree. `master` is *not* a
-  complete ref — `CMakePresets.json` and the SDL2 `release-2.32.10` bump were added on
-  the `aseprite` branch only. Use `git show <commit>:<path>` to read a removed file
-  rather than reconstructing it from REMOVED.md prose.
+  build system, plugin); `3d1abd6` holds the plugin-only tree. Both are reachable from
+  `master`, which absorbed the `aseprite` branch in merge `76a0055` (tree taken
+  wholesale, so the branches are identical). The pre-merge master, `dc61ed2`, lacks the
+  aseprite-era additions — don't recover from it. Use `git show <commit>:<path>` to read
+  a removed file rather than reconstructing it from REMOVED.md prose.
 
 If asked to restore something, prefer `git checkout <commit> -- <paths>` over retyping
 from the notes, and re-read REMOVED.md for the caveats attached to that component —

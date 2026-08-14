@@ -41,8 +41,11 @@ git show 138f912 --stat
 git checkout 138f912 -- <paths>
 ```
 
-Note that `master` predates the `aseprite` branch additions (`CMakePresets.json`, the
-SDL2 bump to `release-2.32.10`) — `138f912` is the complete ref, not `master`.
+Both commits are reachable from `master`: the `aseprite` branch was merged into it
+(`76a0055`), taking the aseprite tree wholesale, so the two branches now have identical
+trees. The pre-merge master is `dc61ed2` — it predates the `aseprite` branch additions
+(`CMakePresets.json`, the SDL2 bump to `release-2.32.10`), so recover from `138f912`
+rather than from it.
 
 ## License
 
